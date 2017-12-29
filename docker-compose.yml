@@ -1,0 +1,52 @@
+version: '2'
+services:
+  all:
+    image: 'varikin/golang-glide-alpine:latest'
+    command:
+      - /bin/sh
+      - '-c'
+      - >-
+        cd /go/src/github.com/guangie88/hdfs-storage-poll && CGO_ENABLED=0 glide
+        install && CGO_ENABLED=0 go build -v
+    volumes_from:
+      - _v
+  update:
+    image: 'varikin/golang-glide-alpine:latest'
+    command:
+      - /bin/sh
+      - '-c'
+      - cd /go/src/github.com/guangie88/hdfs-storage-poll && glide update
+    volumes_from:
+      - _v
+  install:
+    image: 'varikin/golang-glide-alpine:latest'
+    command:
+      - /bin/sh
+      - '-c'
+      - >-
+        cd /go/src/github.com/guangie88/hdfs-storage-poll && CGO_ENABLED=0 glide
+        install
+    volumes_from:
+      - _v
+  build:
+    image: 'varikin/golang-glide-alpine:latest'
+    command:
+      - /bin/sh
+      - '-c'
+      - >-
+        cd /go/src/github.com/guangie88/hdfs-storage-poll && CGO_ENABLED=0 go
+        build -v
+    volumes_from:
+      - _v
+  clean:
+    image: 'varikin/golang-glide-alpine:latest'
+    command:
+      - /bin/sh
+      - '-c'
+      - cd /go/src/github.com/guangie88/hdfs-storage-poll && go clean
+    volumes_from:
+      - _v
+  _v:
+    image: 'varikin/golang-glide-alpine:latest'
+    volumes:
+      - './:/go/src/github.com/guangie88/hdfs-storage-poll'

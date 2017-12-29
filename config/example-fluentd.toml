@@ -1,0 +1,7 @@
+Host = "localhost:9000"
+UseFluentd = true
+
+[Fluentd]
+Host = "localhost"
+Port = 24224
+Tag = "app.hdfs-storage-poll"
