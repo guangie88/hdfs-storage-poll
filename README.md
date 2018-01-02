@@ -2,9 +2,7 @@
 
 This is an experimental project.
 
-Performs a recursive directory copy from HDFS host to local storage. Does not
-require any Hadoop binaries since it uses Go native implemented HDFS client
-library.
+Performs HDFS storage polling and reports it to Fluentd logging.
 
 ## Requirements
 

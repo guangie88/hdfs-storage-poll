@@ -44,6 +44,33 @@ type config struct {
 	Fluentd fluentd
 }
 
+func formatTime(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+
+func newMsgInfo(level logrus.Level, heading string, msg string, datetime time.Time) map[string]interface{} {
+	return map[string]interface{}{
+		"level":    levelToStr(level),
+		"heading":  heading,
+		"msg":      msg,
+		"datetime": formatTime(datetime),
+	}
+}
+
+func newFsLogInfo(level logrus.Level, heading string, fs hdfs.FsInfo, datetime time.Time) map[string]interface{} {
+	// not using fs.Used because it does not take into account .Used from host
+	return map[string]interface{}{
+		"level":         levelToStr(level),
+		"heading":       heading,
+		"capacity":      fs.Capacity,
+		"used":          fs.Capacity - fs.Remaining,
+		"remaining":     fs.Remaining,
+		"datetime":      formatTime(datetime),
+		"usedProp":      float64(fs.Capacity-fs.Remaining) / float64(fs.Capacity),
+		"remainingProp": float64(fs.Remaining) / float64(fs.Capacity),
+	}
+}
+
 func levelToStr(level logrus.Level) string {
 	switch level {
 	case logrus.DebugLevel:
@@ -63,23 +90,23 @@ func levelToStr(level logrus.Level) string {
 	return "unknown"
 }
 
-func regularLog(level logrus.Level, heading string, msg interface{}) {
-	logrus.WithFields(logrus.Fields{
-		"level":    levelToStr(level),
-		"heading":  heading,
-		"msg":      msg,
-		"datetime": time.Now(),
-	}).Print()
+func regularLog(level logrus.Level, heading string, msg string) {
+	logrus.WithFields(newMsgInfo(level, heading, msg, time.Now())).Print()
 }
 
-func genFluentdLog(logger *fluent.Fluent, tag string) func(logrus.Level, string, interface{}) {
-	return func(level logrus.Level, heading string, msg interface{}) {
-		logger.Post(tag, map[string]interface{}{
-			"level":    levelToStr(level),
-			"heading":  heading,
-			"msg":      msg,
-			"datetime": time.Now().Format(time.RFC3339),
-		})
+func genFluentdLog(logger *fluent.Fluent, tag string) func(logrus.Level, string, string) {
+	return func(level logrus.Level, heading string, msg string) {
+		logger.Post(tag, newMsgInfo(level, heading, msg, time.Now()))
+	}
+}
+
+func regularLogFs(level logrus.Level, heading string, fs hdfs.FsInfo) {
+	logrus.WithFields(newFsLogInfo(level, heading, fs, time.Now())).Print()
+}
+
+func genFluentdLogFs(logger *fluent.Fluent, tag string) func(logrus.Level, string, hdfs.FsInfo) {
+	return func(level logrus.Level, heading string, fs hdfs.FsInfo) {
+		logger.Post(tag, newFsLogInfo(level, heading, fs, time.Now()))
 	}
 }
 
@@ -90,6 +117,7 @@ func genFluentdLogClose(logger *fluent.Fluent) func() {
 }
 
 var log = regularLog
+var logFs = regularLogFs
 var logClose = func() {}
 
 // Function literal type to take a HDFS src path, local dst path, and HDFS client
@@ -169,6 +197,7 @@ func initLog(c config) error {
 		}
 
 		log = genFluentdLog(logger, c.Fluentd.Tag)
+		logFs = genFluentdLogFs(logger, c.Fluentd.Tag)
 		logClose = genFluentdLogClose(logger)
 	}
 
@@ -192,5 +221,5 @@ func main() {
 	fs, err := client.StatFs()
 	exitOnErr("HDFS", err)
 
-	log(logrus.InfoLevel, "POLL", fs)
+	logFs(logrus.InfoLevel, "POLL", fs)
 }
